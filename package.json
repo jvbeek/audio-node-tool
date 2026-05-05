@@ -1,0 +1,12 @@
+{
+  "name": "audio-node-tool",
+  "version": "1.0.0",
+  "description": "Browser-based audio capture and streaming tool for OpenClaw",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Node Tool</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>🎧 Audio Node Tool</h1>
+      <div id="status-bar">
+        <span id="status-dot" class="dot disconnected"></span>
+        <span id="status-text">Disconnected</span>
+        <select id="mode-select">
+          <option value="push">Push-to-Talk</option>
+          <option value="continuous">Continuous</option>
+          <option value="passthrough">Passthrough</option>
+        </select>
+      </div>
+    </header>
+
+    <main>
+      <div id="visualizer-container">
+        <canvas id="visualizer"></canvas>
+        <div id="idle-hint">Click "Start" to begin</div>
+      </div>
+
+      <div id="transcript-area">
+        <div class="transcript-label">Transcript</div>
+        <div id="transcript-content">—</div>
+      </div>
+
+      <div id="response-area">
+        <div class="transcript-label">Response</div>
+        <div id="response-content">—</div>
+      </div>
+    </main>
+
+    <footer>
+      <div id="controls">
+        <button id="btn-start" class="btn-primary">🎤 Start</button>
+        <button id="btn-stop" class="btn-secondary" disabled>⏹ Stop</button>
+      </div>
+      <div id="push-btn" class="push-btn" style="display:none;">
+        <span class="push-label">Hold to Speak</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- App modules (order matters) -->
+  <script src="js/websocket.js"></script>
+  <script src="js/capture.js"></script>
+  <script src="js/playback.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
