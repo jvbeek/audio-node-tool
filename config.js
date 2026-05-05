@@ -1,5 +1,6 @@
 module.exports = {
   port: 18790,
+  httpsPort: 18800,
   gateway: {
     host: 'localhost',
     port: 18789,

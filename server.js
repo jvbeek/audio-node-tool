@@ -2,17 +2,38 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const config = require('./config');
+
+// ── SSL/TLS (self-signed, for LAN access) ──────────────────────────
+const certPath = path.join(__dirname, 'certs', 'localhost.crt');
+const keyPath = path.join(__dirname, 'certs', 'localhost.key');
+let sslEnabled = false;
+let httpsServer = null;
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  try {
+    const cert = fs.readFileSync(certPath);
+    const key = fs.readFileSync(keyPath);
+    httpsServer = https.createServer({ cert, key }, handleRequest);
+    sslEnabled = true;
+    console.log('🔒 HTTPS enabled (self-signed cert)');
+  } catch (e) {
+    console.error(`[ssl] Failed to load cert: ${e.message}`);
+  }
+} else {
+  console.log('🔓 No SSL certs found (HTTPS disabled)');
+}
 
 // ── MIME types ──────────────────────────────────────────────────────
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css':  'text/css; charset=utf-8',
   '.js':   'application/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
+  '.json': 'application/json',
   '.png':  'image/png',
   '.svg':  'image/svg+xml',
   '.ico':  'image/x-icon',
@@ -40,18 +61,22 @@ function serveStatic(req, res) {
   });
 }
 
-// ── HTTP server ─────────────────────────────────────────────────────
-const server = http.createServer((req, res) => {
+// ── Request handler (shared by HTTP and HTTPS) ──────────────────────
+function handleRequest(req, res) {
   if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ status: 'ok', clients: clients.size }));
     return;
   }
   serveStatic(req, res);
-});
+}
+
+// ── HTTP server ─────────────────────────────────────────────────────
+const httpServer = http.createServer(handleRequest);
 
 // ── WebSocket server ────────────────────────────────────────────────
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server: httpServer });
+let wssHttps = null;
 
 const clients = new Map(); // ws → session
 let nextId = 1;
@@ -138,7 +163,6 @@ function encodeWAV(pcm, sampleRate) {
   return wav;
 }
 
-// ── Whisper transcription ───────────────────────────────────────────
 // ── Whisper transcription via llama-swap ──────────────────────────────
 // Endpoint: POST /v1/audio/transcriptions (multipart/form-data)
 // Fields: model (string), file (audio/wav)
@@ -270,12 +294,12 @@ async function processAudio(session) {
     const text = await transcribe(pcm);
 
     session.ws.send(makeStatusFrame(`📝 "${text}"`));
-    
+
     session.ws.send(makeStatusFrame('🤖 Thinking...'));
     const reply = await sendToGateway(text);
 
     session.ws.send(makeStatusFrame(`💬 "${reply.slice(0, 80)}..."`));
-    
+
     session.ws.send(makeStatusFrame('🔊 Speaking...'));
     await synthesize(reply, session);
 
@@ -288,8 +312,8 @@ async function processAudio(session) {
   session.processing = false;
 }
 
-// ── WebSocket connection handler ────────────────────────────────────
-wss.on('connection', (ws, req) => {
+// ── WebSocket connection handler (shared by HTTP + HTTPS) ───────────
+function onWsConnection(ws, req) {
   const id = nextId++;
   const session = new AudioSession(ws, id);
   clients.set(ws, session);
@@ -329,13 +353,33 @@ wss.on('connection', (ws, req) => {
   ws.on('error', (err) => {
     console.error(`[ws] Client #${id} error:`, err.message);
   });
+}
+
+// Attach to HTTP WebSocket server
+wss.on('connection', (ws, req) => {
+  onWsConnection(ws, req);
 });
 
 // ── Start ───────────────────────────────────────────────────────────
-server.listen(config.port, '0.0.0.0', () => {
+httpServer.listen(config.port, '0.0.0.0', () => {
   console.log(`🎧 audio-node-tool running on port ${config.port}`);
   console.log(`   → http://localhost:${config.port}`);
   console.log(`   → WebSocket: ws://localhost:${config.port}`);
+
+  if (sslEnabled) {
+    const httpsPort = config.httpsPort || (config.port + 1);
+    try {
+      httpsServer.listen(httpsPort, '0.0.0.0', () => {
+        console.log(`   → https://0.0.0.0:${httpsPort} (self-signed, accept in browser)`);
+        console.log(`   → WSS: wss://0.0.0.0:${httpsPort}`);
+      });
+    } catch(e) {
+      console.log(`   → HTTPS failed (${e.code}), HTTP-only`);
+    }
+  } else {
+    console.log('   → HTTPS disabled (no certs)');
+  }
+
   console.log(`   Gateway: ${config.gateway.host}:${config.gateway.port}`);
   console.log(`   LlamaSwap: ${config.llamaSwap.host}:${config.llamaSwap.port}`);
 });

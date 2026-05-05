@@ -10,7 +10,10 @@ npm install
 npm start
 ```
 
-Open http://localhost:18790 in your browser.
+- **Local:** Open `http://localhost:18790`
+- **LAN:** Open `https://<your-ip>:18800` (self-signed cert — accept the browser warning)
+
+> ⚠️ LAN access **requires HTTPS** — `getUserMedia` is blocked on insecure origins.
 
 ## Modes
 
@@ -36,10 +39,9 @@ Browser ← WebSocket (PCM) ← AudioWorklet ← speakers
 
 | Port | Service |
 |------|---------|
-| 18790 | Main app (HTTP + WebSocket) |
-| 18791 | Reserved (OpenClaw gateway) |
-| 18792 | Debug (unused) |
-| 18793 | Reserved |
+| 18790 | HTTP + WebSocket (localhost only) |
+| 18800 | HTTPS + WSS (LAN access, self-signed cert) |
+| 18789 | OpenClaw gateway |
 
 ## Config
 
@@ -48,10 +50,19 @@ Edit `config.js`:
 ```js
 {
   port: 18790,
-  gateway: { host: 'localhost', port: 18789, token: '...' },
+  httpsPort: 18800,
+  gateway: { host: 'localhost', port: 18789, token: process.env.OPENCLAW_TOKEN || '...' },
   llamaSwap: { host: 'llama-3090-core', port: 8080, sttModel: 'whisper-tiny', ttsModel: 'kokoro' },
   audio: { sampleRate: 16000, channels: 1, bufferSize: 320 }
 }
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OPENCLAW_TOKEN` | (none) | Gateway auth token |
+| `LLAMA_HOST` | `llama-3090-core` | llama-swap hostname |
 ```
 
 ## WebSocket Protocol
