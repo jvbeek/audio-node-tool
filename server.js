@@ -236,7 +236,7 @@ async function sendToGateway(message) {
       'Authorization': `Bearer ${gateway.token}`,
     },
     body: JSON.stringify({
-      model: 'default',
+      model: 'openclaw',
       messages: [
         { role: 'user', content: message }
       ],
