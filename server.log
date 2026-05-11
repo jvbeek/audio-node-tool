@@ -1,0 +1,13 @@
+
+> audio-node-tool@1.0.0 start
+> node server.js
+
+🔒 HTTPS enabled (self-signed cert)
+🎧 audio-node-tool running on port 18790
+   → http://localhost:18790
+   → WebSocket: ws://localhost:18790
+   Gateway: localhost:18789
+   LlamaSwap: llama-3090-core:8080
+   → https://0.0.0.0:18800 (self-signed, accept in browser)
+   → WSS: wss://0.0.0.0:18800
+[ws] Client #1 connected (172.16.0.145)

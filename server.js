@@ -284,8 +284,10 @@ async function processAudio(session) {
   session.processing = true;
 
   const pcm = session.flush();
+  console.log(`[process] Flushed ${pcm.length} bytes (${(pcm.length / 2 / config.audio.sampleRate).toFixed(1)}s audio)`);
   if (pcm.length < 64) { // Too short (<2ms)
     session.processing = false;
+    session.ws.send(makeStatusFrame('⚠️ Audio too short'));
     return;
   }
 
@@ -322,27 +324,36 @@ function onWsConnection(ws, req) {
   ws.send(makeStatusFrame('✅ Connected to audio-node-tool'));
 
   ws.on('message', (data, isBinary) => {
+    console.log(`[ws] Client #${id} message: type=${isBinary ? 'binary' : 'text'}, length=${data.length}`);
     if (!isBinary) {
       try {
         const cmd = JSON.parse(data.toString());
+        console.log(`[ws] Client #${id} command: ${cmd.type}`);
         if (cmd.type === 'start') {
           session.reset();
           console.log(`[ws] Client #${id} started recording`);
         } else if (cmd.type === 'stop') {
+          console.log(`[ws] Client #${id} stopped recording, processing...`);
           processAudio(session);
         } else if (cmd.type === 'clear') {
           session.reset();
         }
-      } catch {}
+      } catch (e) {
+        console.log(`[ws] Client #${id} parse error:`, e.message);
+      }
       return;
     }
 
-    const frame = parseFrame(data);
-    if (!frame) return;
-
-    if (frame.type === 0x01) {
-      session.appendPCM(frame.payload);
+    // Accept both framed and raw binary audio
+    if (data.length >= 5) {
+      const frame = parseFrame(data);
+      if (frame && frame.type === 0x01) {
+        session.appendPCM(frame.payload);
+        return;
+      }
     }
+    // Raw PCM (no framing) - treat entire payload as audio
+    session.appendPCM(Buffer.from(data));
   });
 
   ws.on('close', () => {

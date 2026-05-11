@@ -11,12 +11,21 @@ class AudioWebSocket {
 
   connect() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    this.ws = new WebSocket(`${proto}//${location.host}`);
+    const url = `${proto}//${location.host}`;
+    console.log('[ws] Connecting to', url);
+    this.ws = new WebSocket(url);
     this.ws.binaryType = 'arraybuffer';
 
     this.ws.onopen = () => {
       this.connected = true;
       console.log('[ws] Connected');
+      // Flush any pending commands
+      if (this.pendingCommands && this.pendingCommands.length > 0) {
+        console.log('[ws] Flushing', this.pendingCommands.length, 'pending commands');
+        while (this.pendingCommands.length > 0) {
+          this.ws.send(JSON.stringify(this.pendingCommands.shift()));
+        }
+      }
     };
 
     this.ws.onclose = () => {
@@ -67,7 +76,13 @@ class AudioWebSocket {
   }
 
   sendCommand(cmd) {
-    if (!this.ws || this.ws.readyState !== 1) return;
+    if (!this.ws || this.ws.readyState !== 1) {
+      console.error('[ws] Cannot send command - WebSocket not connected (state:', this.ws ? this.ws.readyState : 'no socket', ')');
+      // Queue command to send when connected
+      if (!this.pendingCommands) this.pendingCommands = [];
+      this.pendingCommands.push(cmd);
+      return;
+    }
     this.ws.send(JSON.stringify(cmd));
   }
 

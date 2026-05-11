@@ -53,6 +53,14 @@ function init() {
     } else if (text.startsWith('💬')) {
       const m = text.match(/"(.*)"/);
       if (m) responseContent.textContent = m[1].replace('...', '');
+    } else if (text.startsWith('✅ Done') || text.startsWith('⚠️') || text.startsWith('❌')) {
+      // Processing complete (success or error) - reset UI
+      btnStart.disabled = false;
+      btnStop.disabled = true;
+      isRecording = false;
+      if (currentMode === 'push') {
+        pushBtn.classList.remove('active');
+      }
     }
   };
 

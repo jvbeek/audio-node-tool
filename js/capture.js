@@ -27,9 +27,7 @@ class AudioCapture {
     this.source = this.ctx.createMediaStreamSource(this.stream);
 
     // Load worklet module
-    if (!this.ctx.options.processingInterval) {
-      await this.ctx.audioWorklet.addModule('js/worklets/capture.worklet.js');
-    }
+    await this.ctx.audioWorklet.addModule('js/worklets/capture.worklet.js');
 
     this.workletNode = new AudioWorkletNode(this.ctx, 'capture-processor', {
       channelCount: 1,
